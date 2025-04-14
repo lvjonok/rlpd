@@ -4,7 +4,7 @@ from functools import partial
 from itertools import zip_longest
 from typing import Callable, Optional, Sequence, Tuple
 
-import gym
+import gymnasium as gym
 import jax
 import optax
 from flax import struct

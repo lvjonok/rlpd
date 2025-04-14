@@ -1,7 +1,8 @@
 from typing import Optional, Tuple
 
-import gym
-from gym.wrappers.pixel_observation import PixelObservationWrapper
+import gymnasium as gym
+from gymnasium.wrappers import AddRenderObservation
+# from gym.wrappers.pixel_observation import PixelObservationWrapper
 
 from rlpd.wrappers.frame_stack import FrameStack
 from rlpd.wrappers.repeat_action import RepeatAction
@@ -22,7 +23,7 @@ def wrap_pixels(
     env = UniversalSeed(env)
     env = gym.wrappers.RescaleAction(env, -1, 1)
 
-    env = PixelObservationWrapper(
+    env = AddRenderObservation(
         env,
         pixels_only=True,
         render_kwargs={

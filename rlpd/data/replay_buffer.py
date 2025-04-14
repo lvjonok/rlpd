@@ -1,8 +1,8 @@
 import collections
 from typing import Optional, Union
 
-import gym
-import gym.spaces
+import gymnasium as gym
+import gymnasium.spaces as gym_spaces
 import jax
 import numpy as np
 
@@ -10,11 +10,11 @@ from rlpd.data.dataset import Dataset, DatasetDict
 
 
 def _init_replay_dict(
-    obs_space: gym.Space, capacity: int
+    obs_space: gym_spaces.Space, capacity: int
 ) -> Union[np.ndarray, DatasetDict]:
-    if isinstance(obs_space, gym.spaces.Box):
+    if isinstance(obs_space, gym_spaces.Box):
         return np.empty((capacity, *obs_space.shape), dtype=obs_space.dtype)
-    elif isinstance(obs_space, gym.spaces.Dict):
+    elif isinstance(obs_space, gym_spaces.Dict):
         data_dict = {}
         for k, v in obs_space.spaces.items():
             data_dict[k] = _init_replay_dict(v, capacity)

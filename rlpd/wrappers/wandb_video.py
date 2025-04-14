@@ -1,6 +1,6 @@
 from typing import Optional
 
-import gym
+import gymnasium as gym
 import numpy as np
 
 import wandb
@@ -34,10 +34,10 @@ class WANDBVideo(gym.Wrapper):
         else:
             self._video.append(
                 self.render(
-                    height=self._pixel_hw,
-                    width=self._pixel_hw,
-                    mode="rgb_array",
-                    **self._render_kwargs
+                    # height=self._pixel_hw,
+                    # width=self._pixel_hw,
+                    # mode="rgb_array",
+                    # **self._render_kwargs,
                 )
             )
 
@@ -48,11 +48,10 @@ class WANDBVideo(gym.Wrapper):
         return obs
 
     def step(self, action: np.ndarray):
-
-        obs, reward, done, info = super().step(action)
+        obs, reward, done, truncated, info = super().step(action)
         self._add_frame(obs)
 
-        if done and len(self._video) > 0:
+        if (done or truncated) and len(self._video) > 0:
             if self._max_videos is not None:
                 self._max_videos -= 1
             video = np.moveaxis(np.stack(self._video), -1, 1)
@@ -61,4 +60,4 @@ class WANDBVideo(gym.Wrapper):
             video = wandb.Video(video, fps=20, format="mp4")
             wandb.log({self._name: video}, commit=False)
 
-        return obs, reward, done, info
+        return obs, reward, done, truncated, info

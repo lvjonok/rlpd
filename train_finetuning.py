@@ -2,11 +2,11 @@
 import os
 import pickle
 
-import d4rl
-import d4rl.gym_mujoco
-import d4rl.locomotion
-import dmcgym
-import gym
+# import d4rl
+# import d4rl.gym_mujoco
+# import d4rl.locomotion
+# import dmcgym
+import gymnasium as gym
 import numpy as np
 import tqdm
 from absl import app, flags
@@ -100,19 +100,24 @@ def main(_):
         buffer_dir = os.path.join(log_dir, "buffers")
         os.makedirs(buffer_dir, exist_ok=True)
 
-    env = gym.make(FLAGS.env_name)
+    env = gym.make(
+        FLAGS.env_name, max_episode_steps=1000, render_mode="rgb_array"
+    )  # TODO: decide where should we setup rendering
     env = wrap_gym(env, rescale_actions=True)
-    env = gym.wrappers.RecordEpisodeStatistics(env, deque_size=1)
-    env.seed(FLAGS.seed)
+    env = gym.wrappers.RecordEpisodeStatistics(env, buffer_length=1)
+    # env.np_random_seed = FLAGS.seed
+    # env.seed(FLAGS.seed)
     # not ideal, but works for now:
     if "binary" in FLAGS.env_name:
         ds = BinaryDataset(env, include_bc_data=FLAGS.binary_include_bc)
     else:
         ds = D4RLDataset(env)
 
-    eval_env = gym.make(FLAGS.env_name)
+    eval_env = gym.make(
+        FLAGS.env_name, render_mode="rgb_array"
+    )  # TODO: decide where should we setup rendering
     eval_env = wrap_gym(eval_env, rescale_actions=True)
-    eval_env.seed(FLAGS.seed + 42)
+    # eval_env.seed(FLAGS.seed + 42)
 
     kwargs = dict(FLAGS.config)
     model_cls = kwargs.pop("model_cls")
@@ -146,7 +151,7 @@ def main(_):
             for k, v in eval_info.items():
                 wandb.log({f"offline-evaluation/{k}": v}, step=i)
 
-    observation, done = env.reset(), False
+    (observation, info), done = env.reset(), False
     for i in tqdm.tqdm(
         range(0, FLAGS.max_steps + 1), smoothing=0.1, disable=not FLAGS.tqdm
     ):
@@ -154,9 +159,9 @@ def main(_):
             action = env.action_space.sample()
         else:
             action, agent = agent.sample_actions(observation)
-        next_observation, reward, done, info = env.step(action)
+        next_observation, reward, done, truncated, info = env.step(action)
 
-        if not done or "TimeLimit.truncated" in info:
+        if not done or truncated:
             mask = 1.0
         else:
             mask = 0.0
@@ -167,17 +172,19 @@ def main(_):
                 actions=action,
                 rewards=reward,
                 masks=mask,
-                dones=done,
+                dones=done or truncated,
                 next_observations=next_observation,
             )
         )
         observation = next_observation
 
-        if done:
-            observation, done = env.reset(), False
-            for k, v in info["episode"].items():
-                decode = {"r": "return", "l": "length", "t": "time"}
-                wandb.log({f"training/{decode[k]}": v}, step=i + FLAGS.pretrain_steps)
+        if done or truncated:
+            (observation, info), done = env.reset(), False
+            truncated = False
+            # TODO: maybe we had to wrap it somehow again
+            # for k, v in info["episode"].items():
+            #     decode = {"r": "return", "l": "length", "t": "time"}
+            #     wandb.log({f"training/{decode[k]}": v}, step=i + FLAGS.pretrain_steps)
 
         if i >= FLAGS.start_training:
             online_batch = replay_buffer.sample(

@@ -1,5 +1,5 @@
-import gym
-from gym.wrappers.flatten_observation import FlattenObservation
+import gymnasium as gym
+from gymnasium.wrappers import FlattenObservation
 
 from rlpd.wrappers.pixels import wrap_pixels
 from rlpd.wrappers.single_precision import SinglePrecision
